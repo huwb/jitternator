@@ -36,7 +36,7 @@ Each of the above were actual jitter issues I've encountered in the past, and us
 
 ## Adding Timestamps To Data
 
-As an experiment I added some code in this repository which allows timestamps to be associated with data (floats only). The aim is to bring the concept of simulation time to the forefront and enforce consistency and correctness in updates, inspired somewhat by the data ownership patterns that Rust enforces. The results were interesting - there were points where the update code was not strictly correct; having timestamps forces the developer to acknowledge these issues in the code.
+As an experiment I added some code in this repository which allows timestamps to be associated with data (floats only). The aim is to bring the concept of simulation time to the forefront and enforce consistency and correctness in updates, inspired somewhat by the data ownership patterns that Rust enforces. The results were interesting - there were points where the update code was not strictly correct; having timestamps forces the developer to either fix the issue, or explicitly acknowledge and workaround these issues in the code.
 
 The first issue it caught was when I mocked up some code to compute an acceleration to integrate onto a velocity, which in turn is integrated onto a position, as follows:
 
@@ -79,7 +79,7 @@ However this also throws an error because the accel computation is now using the
 
 Now the accel has a start frame timestamp because both targetPos and pos are at start frame values, and both pos and vel update from start frame value to end frame value.
 
-A more involved example of an issue being caught and made expllicit is a physics object which reads the player input and a keyframe animated value each physics substep. Both of these values are only updated once at the start of the frame, not for each physics substep, and therefore the timestamps won't match and the code will fail, unless it is explicitly told to ignore the timestamp. Which may be ok - using only the start frame user input values would be considered normal, but still better to be explicit about it IMO. On the other hand, the animated value having the wrong time might be more serious. One of the trickier jitter issues I've looked at in the past was using PD control to make a rigidbody follow an animated transform. An interpolator was necessary to give target transforms at the correct times for each physics substep.
+A more involved example of an issue being caught and made explicit is a physics object which reads the player input and a keyframe animated value each physics substep. Both of these values are only updated once at the start of the frame, not for each physics substep, and therefore the timestamps won't match and the code will fail, unless it is explicitly told to ignore the timestamp. Which may be ok - using only the start frame user input values would be considered normal, but still better to be explicit about it IMO. On the other hand, the animated value having the wrong time might be more serious. One of the trickier jitter issues I've looked at in the past was using PD control to make a rigidbody follow an animated transform. An interpolator was necessary to give target transforms at the correct times for each physics substep.
 
 Implementing this into a C++ engine would be super-invasive and does not feel practical, at least in its current form. It might be an easier fit to other languages though.
 
