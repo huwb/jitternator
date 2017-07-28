@@ -77,7 +77,7 @@ However this also throws an error because the accel computation is now using the
 		vel.Integrate( accel, dt );
 ```
 
-Now the accel has a start frame timestamp because both targetPos and pos are at start frame values, and both pos and vel update from start frame value to end frame value.
+Now the accel has a start frame timestamp because both targetPos and pos are at start frame values, and both pos and vel update from start frame value to end frame value. The final fix is counterintuitive and surprising to me, and *really* easy to accidentally get wrong without consistency checking.
 
 A more involved example of an issue being caught and made explicit is a physics object which reads the player input and a keyframe animated value each physics substep. Both of these values are only updated once at the start of the frame, not for each physics substep, and therefore the timestamps won't match and the code will fail, unless it is explicitly told to ignore the timestamp. Which may be ok - using only the start frame user input values would be considered normal, but still better to be explicit about it IMO. On the other hand, the animated value having the wrong time might be more serious. One of the trickier jitter issues I've looked at in the past was using PD control to make a rigidbody follow an animated transform. An interpolator was necessary to give target transforms at the correct times for each physics substep.
 
