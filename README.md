@@ -51,7 +51,7 @@ The first issue it caught was when I mocked up some code to compute an accelerat
 		pos.Integrate( vel, dt );
 ```
 
- This is wrong because the position and velocity should both be updated from the start frame state - it's wrong to update vel and then used the updated vel to update pos. The start frame state should be used to update both. In this case, the consistency checking throws an error and it can be seen that the data timestamps don't match in the pos.Integrate() line. I tried the following which I felt confident would fix it:
+ This is wrong because the position and velocity should both be updated from the start frame state - it's wrong to update vel and then used the updated vel to update pos. The start frame state should be used to update both. In this case, the consistency checking throws an error and it can be seen that the data timestamps don't match in the pos.Integrate() line. I tried to switch the order of the pos and vel integration as follows, which I felt confident would fix it:
 
 ```cpp
 		// move state of pos forward in time
