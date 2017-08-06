@@ -11,10 +11,14 @@
 class GameSimulation
 {
 public:
+	GameSimulation()
+	{
+	}
+
 	void Init( const FloatTime& firstFrameDt )
 	{
-		_carStateLatest.pos = FloatTime( 0.0f, _physicsDt.Time() );
-		_carStateLatest.vel = FloatTime( 0.0f, _physicsDt.Time() );
+		_carStateLatest.pos = FloatTime( 0.0f, _physicsDt );
+		_carStateLatest.vel = FloatTime( 0.0f, _physicsDt );
 
 		_cameraPos.FinishedUpdate( firstFrameDt );
 	}
@@ -35,12 +39,12 @@ public:
 
 		// get keyboard input - here just use dt as an arbitrary mock input.
 		// assume our input value comes from the frame start time. may not always be the case!
-		_inputVal = FloatTime( 30.0f, frameDt.Time() );
+		_inputVal = FloatTime( 30.0f, frameDt );
 	}
 
 	void AnimationUpdate( const FloatTime& frameDt )
 	{
-		_carAnimTargetPos = FloatTime( 5.0f * frameDt.Time(), frameDt.Time() /*+ frameDt.Value()*/ );
+		_carAnimTargetPos = FloatTime( 5.0f * frameDt.Time(), frameDt /*+ frameDt.Value()*/ );
 	}
 
 	void PhysicsUpdate( const FloatTime& frameDt )
@@ -99,11 +103,13 @@ public:
 	{
 		// scheme: sample car position etc at the end frame values, and then simulate forwards from end frame. so the from-time is
 		// the end frame time, and to to-time must then be 1 frame ahead
-		_cameraDt = FloatTime( frameDt.Value(), frameDt.Value() + frameDt.Time() );
+		//_cameraDt = FloatTime( frameDt.Value(), frameDt.Value() + frameDt.Time() );
+		_cameraDt = frameDt;
+		AdvanceDt( _cameraDt );
 
 		// does not work!! we don't know the dt for the next frame, so we don't know how far forward to simulate the camera!
 		// HACK FIX!! reset the time
-		_cameraPos = FloatTime( _cameraPos.Value(), _cameraDt.Time() );
+		_cameraPos = FloatTime( _cameraPos.Value(), _cameraDt );
 
 		// lerp camera towards car
 		_cameraPos = FloatTime::Lerp( _cameraPos, _carStateCurrent.pos, FloatTime( 6.0f * _cameraDt.Value(), _cameraDt ) );
@@ -131,21 +137,21 @@ public:
 
 	struct CarState
 	{
-		FloatTime pos;
-		FloatTime vel;
+		FloatTime pos = FloatTime( 0.0f );
+		FloatTime vel = FloatTime( 0.0f );
 	};
 
 	CarState _carStateLatest;
 	CarState _carStateCurrent;
 
-	FloatTime _inputVal = FloatTime( 0.0f, 0.0f );
-	FloatTime _inputValLast = FloatTime( 0.0f, 0.0f );
+	FloatTime _inputVal = FloatTime( 0.0f );
+	FloatTime _inputValLast = FloatTime( 0.0f );
 
-	FloatTime _carAnimTargetPos;
+	FloatTime _carAnimTargetPos = FloatTime( 0.0f );
 
-	FloatTime _physTimeBalance = FloatTime( 0.0f, 0.0f );
-	FloatTime _physicsDt = FloatTime( 1.0f / 64.0f, 0.0f );
+	FloatTime _physTimeBalance = FloatTime( 0.0f );
+	FloatTime _physicsDt = FloatTime( 1.0f / 64.0f );
 
-	FloatTime _cameraDt = FloatTime( 0.0f, 0.0f );
-	FloatTime _cameraPos = FloatTime( 0.0f, 0.0f );
+	FloatTime _cameraDt = FloatTime( 0.0f );
+	FloatTime _cameraPos = FloatTime( 0.0f );
 };

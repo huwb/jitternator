@@ -12,7 +12,7 @@ void TestGame()
 {
 	GameSimulation game;
 	
-	FloatTime frameDt( 1.0f / 30.0f, 0.0f );
+	FloatTime frameDt( 1.0f / 30.0f );
 	game.Init( frameDt );
 
 	for( int i = 0; i < 20; i++ )
@@ -27,30 +27,32 @@ void TestGame()
 
 void TestSimple()
 {
-	FloatTime dt = FloatTime( 1.0f / 32.0f, 0.0f );
+	FloatTime dt = FloatTime( 1.0f / 32.0f );
 
 	FloatTime pos( 1.0f, dt );
 	FloatTime vel( 2.0f, dt );
 
-	FloatTime lastTarget;
+	FloatTime lastTarget( 0.0f );
 	bool lastTargetValid = false;
 
 	for( int i = 0; i < 20; i++ )
 	{
-		// fixed error 3 - taking animated value at end of frame
-		FloatTime target = FloatTime( 10.0f, dt.Time() + dt.Value() );
+		// test - taking animated value at end of frame
+		FloatTime target = FloatTime( 10.0f, dt );
+		// artifically push dt forwards - to simulate getting a value at end frame time
+		target.FinishedUpdate( dt );
 
-		// fixed error 2 - computing accel from pos after pos update.
+		// compute accel before updating pos!
 		// this default value has time=0 and would only work on the first frame. on subsequent
 		// frames it is overwritten with the calculation in the branch.
-		FloatTime accel( 0.0f, 0.0f );
+		FloatTime accel( 0.0f );
 		if( lastTargetValid )
 		{
 			accel = lastTarget - pos;
 			accel *= FloatTime( 4.0f, dt );
 		}
 
-		// fixed error 1 - integrating vel before pos
+		// integrate pos before vel!
 		pos.Integrate( vel, dt );
 
 		printf( "%f\n", pos.Value() );

@@ -5,8 +5,7 @@
 
 class FloatTime;
 // could this be automatic through a conversion constructor?
-void CheckConsistency( const FloatTime& a, const FloatTime& b, float& o_consistentTime );
-void CheckConsistency( const FloatTime& a, const FloatTime& b, const FloatTime& c, float& o_consistentTime );
+void CheckConsistency( const FloatTime& a, const FloatTime& b );
 
 
 /**
@@ -14,96 +13,82 @@ void CheckConsistency( const FloatTime& a, const FloatTime& b, const FloatTime& 
 */
 class FloatTime
 {
-public:
+private:
 	FloatTime()
 	{
 	}
 
-	explicit FloatTime( float value, float time )
+public:
+	// creates a float with a timetamp, with the given value and timestamp 0
+	explicit FloatTime( float value )
+		: _value( value )
 	{
-		_value = value;
-		_time = time;
 	}
-	
-	// given a frame dt, this uses the time stamp stored in the dt, which will be the frame start time. i thought
-	// about making a global frame dt, but physics etc run on different timesteps
-	explicit FloatTime( float value, const FloatTime& frameDt )
+
+	// creates a float with timestamp, using the timestamp from an existing value. using the 
+	// frame dt is a common pattern here
+	explicit FloatTime( float value, const FloatTime& timeGiver )
 	{
 		_value = value;
-		_time = frameDt.Time();
+		_time = timeGiver.Time();
 	}
 
 	FloatTime operator+( const FloatTime& other ) const
 	{
-		float consistentTime;
-		CheckConsistency( *this, other, consistentTime );
-
-		FloatTime result( _value + other._value, consistentTime );
+		CheckConsistency( *this, other );
+		FloatTime result;
+		result._value = _value + other._value;
+		result._time = _time;
 		return result;
 	}
 	FloatTime operator-( const FloatTime& other ) const
 	{
-		float consistentTime;
-		CheckConsistency( *this, other, consistentTime );
-
-		FloatTime result( _value - other._value, consistentTime );
+		CheckConsistency( *this, other );
+		FloatTime result;
+		result._value = _value - other._value;
+		result._time = _time;
 		return result;
 	}
 	FloatTime operator*( const FloatTime& other ) const
 	{
-		float consistentTime;
-		CheckConsistency( *this, other, consistentTime );
-
-		FloatTime result( _value * other._value, consistentTime );
+		CheckConsistency( *this, other );
+		FloatTime result;
+		result._value = _value * other._value;
+		result._time = _time;
 		return result;
 	}
 	FloatTime operator/( const FloatTime& other ) const
 	{
-		float consistentTime;
-		CheckConsistency( *this, other, consistentTime );
-
-		FloatTime result( _value / other._value, consistentTime );
+		CheckConsistency( *this, other );
+		FloatTime result;
+		result._value = _value / other._value;
+		result._time = _time;
 		return result;
 	}
 
 	FloatTime& operator+=( const FloatTime& other )
 	{
-		float consistentTime;
-		CheckConsistency( *this, other, consistentTime );
-
+		CheckConsistency( *this, other );
 		_value += other.Value();
-		_time = consistentTime;
-
 		return *this;
 	}
 	FloatTime& operator-=( const FloatTime& other )
 	{
-		float consistentTime;
-		CheckConsistency( *this, other, consistentTime );
-
+		CheckConsistency( *this, other );
 		_value -= other.Value();
-		_time = consistentTime;
-
 		return *this;
 	}
 	FloatTime& operator*=( const FloatTime& other )
 	{
-		float consistentTime;
-		CheckConsistency( *this, other, consistentTime );
-
+		CheckConsistency( *this, other );
 		_value *= other._value;
-		_time = consistentTime;
-
 		return *this;
 	}
 
 	void Integrate( const FloatTime& rateOfChange, const FloatTime& dt )
 	{
-		if( !HasTime() )
-			__debugbreak(); // cant integrate a non-time-varying value!
-
-		float ct;
-		CheckConsistency( *this, rateOfChange, dt, ct );
+		CheckConsistency( *this, rateOfChange );
+		CheckConsistency( *this, dt );
 
 		*this += rateOfChange * dt;
 
@@ -112,11 +97,7 @@ public:
 
 	void FinishedUpdate( const FloatTime& dt )
 	{
-		if( !HasTime() )
-			__debugbreak(); // cant update a non-time-varying value!
-
-		float ct;
-		CheckConsistency( *this, dt, ct );
+		CheckConsistency( *this, dt );
 
 		_time = Time() + dt.Value();
 	}
@@ -126,16 +107,8 @@ public:
 		return _value;
 	}
 
-	bool HasTime() const
-	{
-		return _time != NO_TIME;
-	}
-
 	float Time() const
 	{
-		if( !HasTime() )
-			__debugbreak();
-
 		return _time;
 	}
 
@@ -149,47 +122,18 @@ public:
 	// lerp alpha has no units - it is not time
 	static FloatTime LerpInTime( const FloatTime& a, const FloatTime& b, float s )
 	{
-		float val = (1.0f - s) * a.Value() + s * b.Value();
-
-		float time;
-
-		if( !a.HasTime() )
-		{
-			if( !b.HasTime() )
-			{
-				// both a and b are constants, return constant
-				time = NO_TIME;
-			}
-			else
-			{
-				// only a is constant
-				time = b.Time();
-			}
-		}
-		else if( !b.HasTime() )
-		{
-			// only b is constant
-			time = a.Time();
-		}
-		else
-		{
-			// both a and b are time varying, lerp the time
-			time = (1.0f - s) * a.Time() + s * b.Time();
-		}
-
-		return FloatTime( val, time );
+		FloatTime result;
+		result._value = (1.0f - s) * a.Value() + s * b.Value();
+		result._time = (1.0f - s) * a.Time() + s * b.Time();
+		return result;
 	}
-
-	const static float NO_TIME;
 
 private:
 	friend void AdvanceDt( FloatTime& io_dt, const FloatTime& newDt );
 
-	float _value = -1.0f;
-	float _time = -1.0f;
+	float _value = 0.0f;
+	float _time = 0.0f;
 };
-
-const float FloatTime::NO_TIME = -1000.0f;
 
 bool ApproxEqual( float a, float b, float eps = 0.0001f )
 {
@@ -198,39 +142,19 @@ bool ApproxEqual( float a, float b, float eps = 0.0001f )
 
 void CheckConsistency( const FloatTime& a, const FloatTime& b )
 {
-	bool consistent = !a.HasTime() || !b.HasTime() || ApproxEqual( a.Time(), b.Time() );
+	bool consistent = ApproxEqual( a.Time(), b.Time() );
 	if( !consistent )
 		__debugbreak();
 }
 
-void CheckConsistency( const FloatTime& a, const FloatTime& b, float& o_consistentTime )
-{
-	CheckConsistency( a, b );
-	o_consistentTime = a.HasTime() ? a.Time() : (b.HasTime() ? b.Time() : FloatTime::NO_TIME);
-}
-
-// three way consistency
-void CheckConsistency( const FloatTime& a, const FloatTime& b, const FloatTime& c, float& o_consistentTime )
-{
-	float ct0, ct1, ct2;
-	CheckConsistency( a, b, ct0 );
-	CheckConsistency( b, c, ct1 );
-	CheckConsistency( a, c, ct2 );
-	o_consistentTime = ct0 != FloatTime::NO_TIME ? ct0 : (ct1 != FloatTime::NO_TIME ? ct1 : ct2);
-}
-
 void AdvanceDt( FloatTime& io_dt, const FloatTime& newDt )
 {
-	// this function requires dt to be non-constant/time-varying
-	if( !io_dt.HasTime() )
-		__debugbreak();
-
 	// if newDt is non-constant (was computed from some time-varying things), then ensure consistency
-	float consistentTime;
-	CheckConsistency( io_dt, newDt, consistentTime );
+	CheckConsistency( io_dt, newDt );
 
 	// use new dt value, and advance time by the dt
-	io_dt = FloatTime( newDt.Value(), io_dt._time + io_dt.Value() );
+	io_dt._value = newDt.Value();
+	io_dt._time = io_dt._time + io_dt.Value();
 }
 
 void AdvanceDt( FloatTime& io_dt )
@@ -250,7 +174,6 @@ FloatTime Vel( const FloatTime& val_t0, const FloatTime& val_t1 )
 						//	return 0.0f;
 
 	float vel = (val_t1.Value() - val_t0.Value()) / (val_t1.Time() - val_t0.Time());
-	float time = val_t1.Time(); // take most up to date / latest time?
 
-	return FloatTime( vel, time );
+	return FloatTime( vel, val_t1 );
 }
