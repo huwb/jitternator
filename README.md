@@ -4,9 +4,7 @@ Lessons learnt from hunting jitter issues
 
 ## Introduction
 
-I've spent weeks and weeks painstakingly hunting down jitter issues - visible stutter in games.
-
-I want to document the lessons and techniques I picked up along the way.
+In the past I've spent weeks and weeks painstakingly hunting down jitter issues - visible stutter in games. I decided to document the lessons and techniques I picked up along the way in the hope that it might help others.
 
 I have also added an experimental implementation of attaching timestamps to data to enforce consistency and detect timing issues at runtime.
 
@@ -30,7 +28,7 @@ Unfortunately I've found jitter is usually caused by a number of overlapping iss
 4. Knock out all of the camera code, then add a few lines that move the camera programmatically at a fixed velocity (similar to how the cube was moved in point 3). This will put the camera at a known correct end-frame position ready for rendering.
 5. Move the character/vehicle/etc in front of the camera, while the camera moving at constant speed. Does the character appear to jitter? If so, it is not being updated to its correct end frame position. Perhaps it is updating with the wrong dt, or the renderer is not taking its final position for some reason - perhaps draw a debug sphere at the characters position to verify it is not a problem with the rendering of the character. If the character is physics-driven (its position is updated during physics update), then it will be on a different update type (fixed steps) compared to the frame update and the state (pos, vel, orient) need to be interpolated (if the physics steps past the shutter time) or extrapolated. Unity exposes these options on rigidbodies but it is not on by default. Note that Unity does not step the physics past the shutter time. When set to interpolation, Unity interpolates the state to a fixed offset of 1/physics rate before the shutter time. This means that the actor is technically not at the correct pos etc for the shutter time, but is always offset by a fixed amount.
 6. The hacked camera on a rail from point 4 can be used to verify the animation system is producing values at the correct time. Animate a cube nearby the camera using keyframes. The cube should appear frame-perfect without jitter. If the cube appears to jitter, the animation is not being evaluated at the camera shutter time, which means something is broken.
-7. Dig in for the long haul, and persevere. If jitter is occurring, there will be a good reason! The inputs/gameplay/etc will break down at low/unsteady FPS, but there should never be visible jitter!
+7. Dig in for the long haul, and persevere. If jitter is occurring, there will be a good reason! The inputs/gameplay/etc may break down at low/unsteady FPS, but there should never be visible jitter!
 
 Each of the above were actual jitter issues I've encountered in the past, and usually more than one at a time.
 
