@@ -21,34 +21,36 @@ void TestGame()
 
 		AdvanceDt( frameDt, frameDt );
 
-		frameDt += MakeConstant( 0.001f );
+		frameDt += FloatTime( 0.001f, frameDt );
 	}
 }
 
 void TestSimple()
 {
-	FloatTime pos( 1.0f, 0.0f );
-	FloatTime vel( 2.0f, 0.0f );
-
 	FloatTime dt = FloatTime( 1.0f / 32.0f, 0.0f );
+
+	FloatTime pos( 1.0f, dt );
+	FloatTime vel( 2.0f, dt );
 
 	FloatTime lastTarget;
 	bool lastTargetValid = false;
 
 	for( int i = 0; i < 20; i++ )
 	{
-		// error 3 - taking animated value at end of frame
+		// fixed error 3 - taking animated value at end of frame
 		FloatTime target = FloatTime( 10.0f, dt.Time() + dt.Value() );
 
-		// error 2 - computing accel from pos after pos update.
-		FloatTime accel( 0.0f, 0.0f ); // default value of 0 - only valid on first frame!
+		// fixed error 2 - computing accel from pos after pos update.
+		// this default value has time=0 and would only work on the first frame. on subsequent
+		// frames it is overwritten with the calculation in the branch.
+		FloatTime accel( 0.0f, 0.0f );
 		if( lastTargetValid )
 		{
 			accel = lastTarget - pos;
-			accel *= MakeConstant( 4.0f );
+			accel *= FloatTime( 4.0f, dt );
 		}
 
-		// error 1 - integrating vel before pos
+		// fixed error 1 - integrating vel before pos
 		pos.Integrate( vel, dt );
 
 		printf( "%f\n", pos.Value() );
@@ -58,7 +60,7 @@ void TestSimple()
 		lastTarget = target;
 		lastTargetValid = true;
 
-		AdvanceDt( dt, dt );
+		AdvanceDt( dt );
 	}
 }
 

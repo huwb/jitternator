@@ -47,7 +47,7 @@ public:
 	{
 		// _physTimeBalance straddles two timelines - it is updated in physics update which can
 		// be ahead of frame update, so don't bother checking frame dt time
-		_physTimeBalance += frameDt.StripTime();
+		_physTimeBalance += FloatTime( frameDt.Value(), _physicsDt );
 
 		CarState lastState = _carStateLatest;
 
@@ -62,7 +62,7 @@ public:
 			_physTimeBalance -= _physicsDt;
 			_physTimeBalance.FinishedUpdate( _physicsDt );
 
-			AdvanceDt( _physicsDt, _physicsDt.StripTime() );
+			AdvanceDt( _physicsDt, _physicsDt );
 
 			stepCount++;
 		}
@@ -81,8 +81,8 @@ public:
 		// take time-stripped copies
 		CheckConsistency( _carAnimTargetPos, frameDt );
 		CheckConsistency( _inputVal, frameDt );
-		FloatTime carAnimTargetPos_const = _carAnimTargetPos.StripTime();
-		FloatTime inputVal_const = _inputVal.StripTime();
+		FloatTime carAnimTargetPos_const = FloatTime( _carAnimTargetPos.Value(), physicsDt );
+		FloatTime inputVal_const = FloatTime( _inputVal.Value(), physicsDt );
 
 		FloatTime accel = inputVal_const + (carAnimTargetPos_const - _carStateLatest.pos);
 
@@ -106,7 +106,7 @@ public:
 		_cameraPos = FloatTime( _cameraPos.Value(), _cameraDt.Time() );
 
 		// lerp camera towards car
-		_cameraPos = FloatTime::Lerp( _cameraPos, _carStateCurrent.pos, MakeConstant( 6.0f * _cameraDt.Value() ) );
+		_cameraPos = FloatTime::Lerp( _cameraPos, _carStateCurrent.pos, FloatTime( 6.0f * _cameraDt.Value(), _cameraDt ) );
 
 		// add influence from changing input
 		if( _inputVal.Time() > _inputValLast.Time() )
@@ -116,12 +116,12 @@ public:
 			// another thing that does not work! we don't have the end-frame inputs! we have the inputs from the beginning of the frame.
 			// this might be deemed "ok", or the inputs could be sampled at the end up the main update but before cameras..!?
 
-			// HACK FIX!! strip time
-			_cameraPos += velDep.StripTime();
+			// HACK FIX!! force time to be correct
+			_cameraPos += FloatTime( velDep.Value(), _cameraDt );
 		}
 
 		// add influence from speed
-		_cameraPos -= _carStateCurrent.vel * MakeConstant( 0.1f );
+		_cameraPos -= _carStateCurrent.vel * FloatTime( 0.1f, _cameraDt );
 
 		_cameraPos.FinishedUpdate( _cameraDt );
 

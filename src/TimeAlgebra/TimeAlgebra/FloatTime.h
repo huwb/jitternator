@@ -5,7 +5,6 @@
 
 class FloatTime;
 // could this be automatic through a conversion constructor?
-FloatTime MakeConstant( float value );
 void CheckConsistency( const FloatTime& a, const FloatTime& b, float& o_consistentTime );
 void CheckConsistency( const FloatTime& a, const FloatTime& b, const FloatTime& c, float& o_consistentTime );
 
@@ -24,6 +23,14 @@ public:
 	{
 		_value = value;
 		_time = time;
+	}
+	
+	// given a frame dt, this uses the time stamp stored in the dt, which will be the frame start time. i thought
+	// about making a global frame dt, but physics etc run on different timesteps
+	explicit FloatTime( float value, const FloatTime& frameDt )
+	{
+		_value = value;
+		_time = frameDt.Time();
 	}
 
 	FloatTime operator+( const FloatTime& other ) const
@@ -124,11 +131,6 @@ public:
 		return _time != NO_TIME;
 	}
 
-	FloatTime StripTime() const
-	{
-		return MakeConstant( _value );
-	}
-
 	float Time() const
 	{
 		if( !HasTime() )
@@ -139,7 +141,7 @@ public:
 
 	static FloatTime Lerp( const FloatTime& a, const FloatTime& b, const FloatTime& s )
 	{
-		return (MakeConstant( 1.0f ) - s) * a + s * b;
+		return (FloatTime( 1.0f, s ) - s) * a + s * b;
 	}
 
 	// lerp between floats at two different simulation times. this is a special case and should
@@ -217,11 +219,6 @@ void CheckConsistency( const FloatTime& a, const FloatTime& b, const FloatTime& 
 	o_consistentTime = ct0 != FloatTime::NO_TIME ? ct0 : (ct1 != FloatTime::NO_TIME ? ct1 : ct2);
 }
 
-FloatTime MakeConstant( float value )
-{
-	return FloatTime( value, FloatTime::NO_TIME );
-}
-
 void AdvanceDt( FloatTime& io_dt, const FloatTime& newDt )
 {
 	// this function requires dt to be non-constant/time-varying
@@ -236,7 +233,13 @@ void AdvanceDt( FloatTime& io_dt, const FloatTime& newDt )
 	io_dt = FloatTime( newDt.Value(), io_dt._time + io_dt.Value() );
 }
 
-// Vel is interesting as we have timestamps for the values
+void AdvanceDt( FloatTime& io_dt )
+{
+	AdvanceDt( io_dt, io_dt );
+}
+
+// Vel is interesting as we have timestamps for the values. This eliminates an issue i've seen where a vel is
+// computed through finite differences but with an incorrect dt.
 FloatTime Vel( const FloatTime& val_t0, const FloatTime& val_t1 )
 {
 	if( val_t1.Time() < val_t0.Time() )
