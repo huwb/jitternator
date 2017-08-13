@@ -1,5 +1,5 @@
 # jitternator
-Lessons learnt from hunting jitter issues
+Lessons learnt from hunting jitter issues!
 
 
 ## Introduction
@@ -8,7 +8,7 @@ In the past I've spent weeks painstakingly hunting down jitter issues - visible 
 
 If you find yourself investigating jitter issues, dig in for the long haul, and persevere. If jitter is occurring, there will be a good reason! The gameplay may break down at low/unsteady FPS, but there should *never* be visible jitter!
 
-I have also added an experimental implementation of attaching timestamps to data to enforce consistency and detect timing issues at runtime.
+I have also added an experimental implementation of attaching timestamps to data to enforce consistency and detect timing issues at runtime, discussed in the last section.
 
 
 ## Preparation
@@ -40,7 +40,7 @@ if( doPrint )
 
 The static can be switched on at run time by setting a breakpoint and then poking a value in through the debugger (in VS mouse over doPrint and click the Pin, then set the value to 0 or 1 to turn it on and off).
 
-Copy paste the output onto an Excel spreadsheet, select the time and value columns, and insert an **X Y (Scatter)** chart. Be sure to use this type, not a Line which won't use the timestamps from the data.
+Copy paste the output onto an Excel spreadsheet, select the time and value columns, and insert an **X Y (Scatter)** chart. Be sure to use this type, not a Line chart which won't use the timestamps from the data.
 
 In the left plot below, there is a long frame around 0.5s, but an incorrect dt is being used and a discontinuity appears in the plot as a step. The right hand side shows the correct result - the trajectory is continuous and smooth despite the long frame.
 
@@ -92,7 +92,7 @@ Each of the above tests have revealed an update bug for me at least once in my c
 
 As an experiment I added some code in this repository which allows timestamps to be associated with data (floats only). The code is a VS2015 project. The aim is to attach simulation times to data and enforce time consistency at run-time. This work is inspired somewhat by the data ownership patterns that Rust enforces. The results were interesting - there were points where the update code was not strictly correct; having timestamps forces the developer to either fix the issue, or explicitly acknowledge and workaround these issues in the code.
 
-The first issue it caught was when I mocked up some code to compute an acceleration to integrate onto a velocity, which in turn is integrated onto a position, as follows:
+As a simple example of the kinds of issues this will catch, I mocked up some code below to compute an acceleration to integrate onto a velocity, which in turn is integrated onto a position, as follows:
 
 ```cpp
 		// compute acceleration by comparing a target position with the current position
