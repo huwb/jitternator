@@ -19,7 +19,7 @@ The following preparation will help greatly when diagnosing jitter issues.
 Check how dt is computed in the game update loop - typically the dt for frame N is the measured real time that passed while processing the previous frame N-1.
 This time might be clamped, filtered, etc.
 It can be useful to turn any such frame time modifications off when debugging jitter, to simplify the behaviour and avoid confusion.
-Similarly if there is a max update dt or max substep count for physics, consider removing it, or checking that the game won't hit this limit for you while testing, as this would cause "legitimate" jitter which would not occur in practice.
+Similarly if there is a max update dt or max substep count for physics, consider removing it, or checking that the game won't hit this limit for you while testing, as this may cause "legitimate" jitter which would not occur in practice.
 
 Obtain an unsteady FPS.
 Many/most jitter issues will not be visible when framerate is constant and consistent. UE4 has a great feature for this - t.UnsteadyFPS, which will set the frame dt to a random value each frame.
@@ -29,7 +29,7 @@ Something else I've done in the past is to insert a really long frame every 5 se
 
 ## Plot Data vs Time
 
-A good quick sanity check to see if some game data is smooth/not jittering is printing it out each frame to the output log, together with associated times. For example print out the end frame data values along with the end frame time. Keep in mind the physics time and frame end time may not coincide. I frequently hack in something like the below which generates an output that is very quick to pasted into Excel and plot:
+A good quick sanity check to see if some game data is smooth/not jittering is printing it out each frame to the output log, together with associated times. For example print out the end frame data values along with the end frame time. Keep in mind the physics time and frame end time may not coincide. I frequently hack in something like the below which generates an output that is very quick to paste into Excel and plot:
 
 ```cpp
 static bool doPrint = false;
@@ -41,18 +41,20 @@ if( doPrint )
 
 The static can be switched on at run time by setting a breakpoint and then poking a value in through the debugger (in VS mouse over doPrint and click the Pin, then set the value to 0 or 1 to turn it on and off).
 
-Copy paste the output onto an Excel spreadsheet, select the time and value columns, and insert an **X Y (Scatter)** chart. Be sure to use this type, not a Line chart which won't use the timestamps from the data.
+Copy-paste the output onto an Excel spreadsheet, select the time and value columns, and insert an **X Y (Scatter)** chart. Be sure to use this chart type, not a Line chart which won't use the timestamps from the data.
 
-In the left plot below, there is a long frame around 0.5s, but an incorrect dt is being used and a discontinuity appears in the plot as a step. The right hand side shows the correct result - the trajectory is continuous and smooth despite the long frame.
+Once plotted, visually inspect the graph for any non-smooth looking behaviour. As an example that may not be an obvious jitter problem at first, in the left plot below, there is a long frame around 0.5s, but an incorrect dt is being used and a discontinuity appears in the plot as a step. The right hand side shows the correct result - the trajectory is continuous and smooth despite the long frame.
 
 ![PlotData](https://raw.githubusercontent.com/huwb/jitternator/master/img/plot_data.png)
+
+If there are multiple things moving together (such as a vehicle and a camera), make sure they both are smooth like the good graph above, and that they both take the jump across the long frame together at the same time.
 
 
 ## Update Analysis
 
-A good way to build a picture of a game update is to put breakpoints in all the update functions for major parts of the engine, as well as a breakpoint in the highest level game loop, and check the order in which updates get called. Some good suggestions for things to breakpoint include physics update, normal actor update, camera update, blueprint update, animation system update, etc. 
+A good way to build a picture of a game update is to put breakpoints in all the update functions for major parts of the engine, as well as a breakpoint in the highest level game loop, and check the order in which updates get called. Some good suggestions for things to breakpoint include physics update, normal actor update, camera update, blueprint update, animation system update, etc (when learning a codebase I like to step through all of he codebase and generated an indented bullet list of all the major update steps in the order they happen).
 
-Write down each major component of the update in order in a list (left hand side of diagram below). Next to the list draw two vertical lines, one for the start frame time, one for the end frame time. Draw left-to-right arrows which depicts how each component updates (gray below). Now draw arrows (red) for all dependencies - when one component reads data from another.
+To analyse the flow of data during the update, write down each major component of the update in order in a list (left hand side of diagram below). Next to the list draw two vertical lines, one for the start frame time, one for the end frame time. Draw left-to-right arrows which depicts how each component updates (gray below). Now draw arrows (red) for all dependencies - when one component reads data from another.
 
 ![UpdateAnalysisBad](https://raw.githubusercontent.com/huwb/jitternator/master/img/update_analysis_bad.png)
 
