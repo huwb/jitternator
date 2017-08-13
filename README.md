@@ -103,7 +103,12 @@ The first issue it caught was when I mocked up some code to compute an accelerat
 		pos.Integrate( vel, dt );
 ```
 
- This is wrong because the position and velocity should both be updated from the start frame state - it's wrong to update vel and then used the updated vel to update pos. The start frame state should be used to update both. In this case, the consistency checking throws an error and it can be seen that the data timestamps don't match in the pos.Integrate() line. I tried to switch the order of the pos and vel integration as follows, which I felt confident would fix it:
+
+This is wrong because the position and velocity should both be updated from the start frame state - it's wrong to update vel and then used the updated vel to update pos:
+
+![UpdateAnalysisVelPosBad1](https://raw.githubusercontent.com/huwb/jitternator/master/img/update_analysis_velpos_bad1.png)
+
+Both should be updated purely from the start frame state. In this case, the consistency checking throws an error and it can be seen that the data timestamps don't match in the pos.Integrate() line. I tried to switch the order of the pos and vel integration as follows, which I felt confident would fix it:
 
 ```cpp
 		// move state of pos forward in time
@@ -116,7 +121,11 @@ The first issue it caught was when I mocked up some code to compute an accelerat
 		vel.Integrate( accel, dt );
 ```
 
-However this also throws an error because the accel computation is now using the end frame position, instead of taking consistent, start frame state. The real fix is this:
+However this also throws an error because the accel computation is now using the end frame position, instead of taking consistent, start frame state. Diagram:
+
+![UpdateAnalysisVelPosBad2](https://raw.githubusercontent.com/huwb/jitternator/master/img/update_analysis_velpos_bad2.png)
+
+ The real fix is this:
 
 ```cpp
 		// compute acceleration by comparing a target position with the current position
@@ -129,7 +138,11 @@ However this also throws an error because the accel computation is now using the
 		vel.Integrate( accel, dt );
 ```
 
-Now the accel has a start frame timestamp because both targetPos and pos are at start frame values, and both pos and vel update from start frame value to end frame value. The final fix is counterintuitive and surprising to me, and *really* easy to accidentally get wrong without consistency checking.
+Now the accel has a start frame timestamp because both targetPos and pos are at start frame values, and both pos and vel update from start frame value to end frame value. Final update diagram:
+
+![UpdateAnalysisVelPosGood](https://raw.githubusercontent.com/huwb/jitternator/master/img/update_analysis_velpos_good.png)
+
+This final fix is counterintuitive and surprised me, and *really* easy to accidentally get wrong without consistency checking.
 
 A more involved example of an issue being caught and made explicit is a physics object which reads the player input and a keyframe animated value each physics substep. Both of these values are only updated once at the start of the frame, not for each physics substep, and therefore the timestamps won't match and the code will fail, unless it is explicitly told to ignore the timestamp. Which may be ok - using only the start frame user input values would be considered normal, but still better to be explicit about it IMO. On the other hand, the animated value having the wrong time might be more serious. One of the trickier jitter issues I've looked at in the past was using PD control to make a rigidbody follow an animated transform. An interpolator was necessary to give target transforms at the correct times for each physics substep.
 
