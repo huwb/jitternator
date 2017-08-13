@@ -85,12 +85,12 @@ There are a number of experiments that can be performed to probe the system and 
 3. Knock out all of the camera code, then add a few lines that move the camera programmatically at a fixed velocity (similar to how the cube was moved in item 2). This will put the camera at a known correct end-frame position ready for rendering. Now move the character/vehicle/etc in front of the camera, while the camera moving at constant speed. Does the character appear to jitter? If so, it is not being updated to its correct end frame position. Perhaps it is updating with the wrong dt, or the renderer is not taking its final position for some reason - perhaps draw a debug sphere at the characters position to verify it is not a problem with the rendering of the character. If the character is physics-driven (its position is updated during physics update), then it will be on a different update type (fixed steps) compared to the frame update and the state (pos, vel, orient) need to be interpolated (if the physics steps past the shutter time) or extrapolated. Unity exposes these options on rigidbodies but it is not on by default. Note that Unity does not step the physics past the shutter time. When set to interpolation, Unity interpolates the state to a fixed offset of 1/<physics hz> before the shutter time. This means that the actor is technically not at the correct pos etc for the shutter time, but is always offset by a fixed amount.
 4. The hacked camera on a rail from the previous item can be used to verify the animation system is producing values at the correct time. Animate a cube nearby the camera using keyframes. The cube should appear frame-perfect without jitter. If the cube appears to jitter, the animation is not being evaluated at the camera shutter time, which means something is broken.
 
-Each of the above tests have failed and revealed an update bug for me at some point in my career 
+Each of the above tests have revealed an update bug for me at least once in my career.
 
 
 ## Adding Timestamps To Data
 
-As an experiment I added some code in this repository which allows timestamps to be associated with data (floats only). The aim is to bring the concept of simulation time to the forefront and enforce consistency and correctness in updates, inspired somewhat by the data ownership patterns that Rust enforces. The results were interesting - there were points where the update code was not strictly correct; having timestamps forces the developer to either fix the issue, or explicitly acknowledge and workaround these issues in the code.
+As an experiment I added some code in this repository which allows timestamps to be associated with data (floats only). The code is a VS2015 project. The aim is to attach simulation times to data and enforce time consistency at run-time. This work is inspired somewhat by the data ownership patterns that Rust enforces. The results were interesting - there were points where the update code was not strictly correct; having timestamps forces the developer to either fix the issue, or explicitly acknowledge and workaround these issues in the code.
 
 The first issue it caught was when I mocked up some code to compute an acceleration to integrate onto a velocity, which in turn is integrated onto a position, as follows:
 
@@ -150,4 +150,4 @@ A more involved example of an issue being caught and made explicit is a physics 
 
 Implementing this into a C++ engine would be super-invasive and does not feel practical, at least in its current form. It might be an easier fit to other languages though.
 
-The code is a (hastily hacked together) VS2015 project.
+Such validation could probably be built into the compiler and could be an interesting direction for future work.
