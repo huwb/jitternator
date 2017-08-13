@@ -1,4 +1,5 @@
 # jitternator
+
 Lessons learnt from hunting jitter issues!
 
 
@@ -28,7 +29,7 @@ Something else I've done in the past is to insert a really long frame every 5 se
 
 ## Plot Data vs Time
 
-A good quick sanity check to see if some game data is smooth/not jittering is to print out the **end frame time** and **end frame values** to the log. I frequently hack in something like the below which generates an output that is very quick to pasted into Excel and plot:
+A good quick sanity check to see if some game data is smooth/not jittering is printing it out each frame to the output log, together with associated times. For example print out the end frame data values along with the end frame time. Keep in mind the physics time and frame end time may not coincide. I frequently hack in something like the below which generates an output that is very quick to pasted into Excel and plot:
 
 ```cpp
 static bool doPrint = false;
