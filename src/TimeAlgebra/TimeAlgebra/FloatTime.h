@@ -19,7 +19,7 @@ private:
 	}
 
 public:
-	// creates a float with a timetamp, with the given value and timestamp 0
+	// creates a float with the given value and timestamp 0
 	explicit FloatTime( float value )
 		: _value( value )
 	{
