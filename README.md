@@ -40,16 +40,36 @@ The static can be switched on at run time by setting a breakpoint and then pokin
 
 In the left plot below, there is a long frame around 0.5s, but an incorrect dt is being used and a discontinuity appears in the plot as a step. The right hand side shows the correct result - the trajectory is continuous and smooth despite the long frame.
 
-![PlotData](https://raw.githubusercontent.com/huwb/jitternator/master/img/plot_data.png)  
+![PlotData](https://raw.githubusercontent.com/huwb/jitternator/master/img/plot_data.png)
 
 
 ## Update Analysis
 
 A good way to build a picture of a game update is to put breakpoints in all the update functions for major parts of the engine, as well as a breakpoint in the highest level game loop, and check the order in which updates get called. Some good suggestions for things to breakpoint include physics update, normal actor update, camera update, blueprint update, animation system update, etc. 
 
-Write down each update major component of the update in order in a list. Next to the list draw two vertical lines, one for the start frame time, one for the end frame time. Now draw arrows wherever one system reads data from another. If the camera system updates after the character and reads the characters position, draw an arrow from the end frame line at the character row to the beginning of the camera update.
+Write down each major component of the update in order in a list (left hand side of diagram below). Next to the list draw two vertical lines, one for the start frame time, one for the end frame time. Draw left-to-right arrows which depicts how each component updates (gray below). Now draw arrows (red) for all dependencies - when one component reads data from another.
 
-Ideally, the entire game state would be cached off at the beginning of the frame, and all game components/systems would read from the left line, and then all use the start frame data to move themselves across to the end frame state. In practice this is usually not the case - typically the physics is ticked near the beginning of the frame, and then everything else in the frame is then taking the end frame state of any physics objects. This is not necessarily a problem - but whenever one finds arrows drawn from both start frame AND end frame states, this is typically bad news - the system is sampling data from two different points in simulated time and this kind of situation leads to jitter. The way to address this is to shuffle around the update order of game systems by moving their update hooks (UE4 - change TickGroup, Unity - change between Update and LateUpdate, or specify script execution order).
+![UpdateAnalysisBad](https://raw.githubusercontent.com/huwb/jitternator/master/img/update_analysis_bad.png)
+
+The above engine evaluates animations at the end frame time first, then updates physics, then all gameplay code, and finally starts the render process. There are a few issues here, that will be addressed afterwards:
+
+* The physics update is pulling animation data at the end frame time. If the animated value is a target position for PD control of a rigidbody (i.e. use a damped spring to match a position and velocity), this will jitter.
+* The physics update is also pulling data from gameplay code like forces that influence the physics at the start frame time only. It is getting stale data in the second physics update, and the fact that this component pulls data from both the start frame time and end frame time has a bad smell.
+* The render process takes the latest physics state for rendering. This data has a slightly different time - the timestamp of the latest physics data is greater than the end frame time/shutter time. This will jitter.
+
+The fixed update order might look like the following:
+
+![UpdateAnalysisGood](https://raw.githubusercontent.com/huwb/jitternator/master/img/update_analysis_good.png)
+
+* An interpolator has been added to provide the correct animation data at every point in time.
+* The portion of the gameplay code that affects physics has been moved from Update() to PhysicsUpdate()/FixedUpdate(), and gives each physics update step fresh data.
+* An interpolator has been added to provide the physics state at the camera shutter time.
+
+The goal here is to have the right order of update of the components, with each update step for each component taking data for the current time (vertical red arrows on the diagram).
+
+Ideally, the entire game state would be cached off at the beginning of the frame, and all game components/systems would read from the left line, and then all use the start frame data to move themselves across to the end frame state.
+In practice this is usually not the case - typically the physics is ticked near the beginning of the frame, and then everything else in the frame is then taking the end frame state of any physics objects.
+This is not necessarily a problem - but whenever one finds arrows drawn from both start frame AND end frame states, this is typically bad news - the system is sampling data from two different points in simulated time and this kind of situation leads to jitter.
 
 
 ## Debugging Experiments / Tests
