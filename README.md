@@ -28,7 +28,7 @@ Something else I've done in the past is to insert a really long frame every 5 se
 
 ## Plot Data vs Time
 
-A good quick sanity check to see if some game data is smooth/not jittering is to print out the end frame time and end frame values to the log. I frequently hack in something like the below which generates an output that is very quick to pasted into Excel and plot:
+A good quick sanity check to see if some game data is smooth/not jittering is to print out the **end frame time** and **end frame values** to the log. I frequently hack in something like the below which generates an output that is very quick to pasted into Excel and plot:
 
 ```cpp
 static bool doPrint = false;
@@ -39,6 +39,8 @@ if( doPrint )
 ```
 
 The static can be switched on at run time by setting a breakpoint and then poking a value in through the debugger (in VS mouse over doPrint and click the Pin, then set the value to 0 or 1 to turn it on and off).
+
+Copy paste the output onto an Excel spreadsheet, select the time and value columns, and insert an **X Y (Scatter)** chart. Be sure to use this type, not a Line which won't use the timestamps from the data.
 
 In the left plot below, there is a long frame around 0.5s, but an incorrect dt is being used and a discontinuity appears in the plot as a step. The right hand side shows the correct result - the trajectory is continuous and smooth despite the long frame.
 
