@@ -152,3 +152,8 @@ A more involved example of an issue being caught and made explicit is a physics 
 Implementing this into a C++ engine would be super-invasive and does not feel practical, at least in its current form. It might be an easier fit to other languages though.
 
 Such validation could probably be built into the compiler and could be an interesting direction for future work.
+
+## Misc Notes
+
+* If you have known update dependencies between scripts **do** explicitly set the update order, and put comments next to each update function recording the dependency, as future you or someone else may move the update code elsewhere later on. Even better document the update flow, something as simple as an indented list works well IMO (see [example](https://github.com/huwb/crest-oceanrender/blob/master/README.md#update-order)).
+
