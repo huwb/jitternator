@@ -7,9 +7,11 @@ Lessons learnt from hunting jitter issues!
 
 In the past I've spent weeks painstakingly hunting down jitter issues - visible stutter in games. I decided to document the lessons and techniques I picked up along the way in the hope that it might help others.
 
-If you find yourself investigating jitter issues, dig in for the long haul, and persevere. If jitter is occurring, there will be a good reason! The gameplay may break down at low/unsteady FPS, but there should *never* be visible jitter!
+If some element of your game is jittering, the first thing to check is if you are updating the element (or the camera!) in fixed time steps? This is a specific type of jitter related to fixed time steps that is a subset of general jitter issues, but happen frequently enough that they are worth calling out specifically (if you have a camera moving in Update() chasing a moving rigidbody in Unity, it will jitter by default). There are notes and links in the Misc Notes section below about this specific case.
 
-I have also added an experimental implementation of attaching timestamps to data to enforce consistency and detect timing issues at runtime, discussed in the last section.
+If the jitter is not related to fixed update, get ready to dig in for the long haul, and persevere. If jitter is occurring, there will be a good reason! The gameplay may break down at low/unsteady FPS, but there should *never* be visible jitter!
+
+I have also added an experimental implementation of attaching timestamps to data to enforce consistency and detect timing issues at runtime, find details below.
 
 
 ## Preparation
@@ -85,15 +87,17 @@ There are a number of experiments that can be performed to probe the system and 
 
 1. Check debug drawing works. At the end of the camera update, draw a debug sphere somewhere in front of the final camera viewpoint, perhaps in the lower half of the screen. Run the game - the sphere should be absolutely, 100% stable. If not, investigate further. Perhaps the debug draw command is jumping the render queue - try drawing the sphere in front of the camera a frame or two later. Debug draw is invaluable for solving jitter issues - don't proceed further until you have a stable sphere at unsteady FPS.
 2. Test the camera can move at a constant velocity. Using a simple bit of code in the game update, move a debug cube through the world. Use a constant velocity vector and integrate it onto a position each frame by multiplying by the total frame dt. Now run the game and follow the cube with the in game camera. Is the cube jitter free? If it is not, something is wrong with the camera update - it's not updating to the shutter time/render time/end frame time. Strip away layers/behaviours from the camera until it becomes very simple. Is it taking the correct dt? If so, then perhaps some input to the camera update is at the wrong time. The following points test whether the character/actor is updating properly, and whether values coming from the animation system have the correct timestamps.
-3. Knock out all of the camera code, then add a few lines that move the camera programmatically at a fixed velocity (similar to how the cube was moved in item 2). This will put the camera at a known correct end-frame position ready for rendering. Now move the character/vehicle/etc in front of the camera, while the camera moving at constant speed. Does the character appear to jitter? If so, it is not being updated to its correct end frame position. Perhaps it is updating with the wrong dt, or the renderer is not taking its final position for some reason - perhaps draw a debug sphere at the characters position to verify it is not a problem with the rendering of the character. If the character is physics-driven (its position is updated during physics update), then it will be on a different update type (fixed steps) compared to the frame update and the state (pos, vel, orient) need to be interpolated (if the physics steps past the shutter time) or extrapolated. Unity exposes these options on rigidbodies but it is not on by default. Note that Unity does not step the physics past the shutter time. When set to interpolation, Unity interpolates the state to a fixed offset of 1/<physics hz> before the shutter time. This means that the actor is technically not at the correct pos etc for the shutter time, but is always offset by a fixed amount.
+3. Knock out all of the camera code, then add a few lines that move the camera programmatically at a fixed velocity (similar to how the cube was moved in item 2). This will put the camera at a known correct end-frame position ready for rendering. Now move the character/vehicle/etc in front of the camera, while the camera moving at constant speed. Does the character appear to jitter? If so, it is not being updated to its correct end frame position. Perhaps it is updating with the wrong dt, or the renderer is not taking its final position for some reason - perhaps draw a debug sphere at the characters position to verify it is not a problem with the rendering of the character. If the character is physics-driven (its position is updated during physics update), then it will be on a different update type (fixed steps) compared to the frame update and the state (pos, vel, orient) and it will need an interpolator as was done above. See Misc Notes below for more on physics related jitter.
 4. The hacked camera on a rail from the previous item can be used to verify the animation system is producing values at the correct time. Animate a cube nearby the camera using keyframes. The cube should appear frame-perfect without jitter. If the cube appears to jitter, the animation is not being evaluated at the camera shutter time, which means something is broken.
 
-Each of the above tests have revealed an update bug for me at least once in my career.
+Each of the above tests have revealed bugs for me in the past.
 
 
 ## Adding Timestamps To Data
 
-As an experiment I added some code in this repository which allows timestamps to be associated with data (floats only). The code is a VS2015 project. The aim is to attach simulation times to data and enforce time consistency at run-time. This work is inspired somewhat by the data ownership patterns that Rust enforces. The results were interesting - there were points where the update code was not strictly correct; having timestamps forces the developer to either fix the issue, or explicitly acknowledge and workaround these issues in the code.
+After seeing the damage that mixing data from different times causes, I had the idea to associate a time with each bit of data in the simulation, and then to check consistency when data is manipulated to automatically detect many of the issues described above. This idea was inspired somewhat by the data ownership patterns that *Rust* enforces. There is a prototype in this repos which tests this concept, albeit in a hacky way (and floats only for now). The format is a VS2015 project.
+
+The results were interesting - I mocked up some update code to test it out and it detected issues where the update flow was not strictly correct and forces the developer to either fix the issue, or explicitly acknowledge and workaround these issues in the code (the system must be intentionally overridden).
 
 As a simple example of the kinds of issues this will catch, I mocked up some code below to compute an acceleration to integrate onto a velocity, which in turn is integrated onto a position, as follows:
 
@@ -107,7 +111,6 @@ As a simple example of the kinds of issues this will catch, I mocked up some cod
 		// move state of pos forward in time
 		pos.Integrate( vel, dt );
 ```
-
 
 This is wrong because the position and velocity should both be updated from the start frame state - it's wrong to update vel and then used the updated vel to update pos:
 
@@ -147,18 +150,18 @@ Now the accel has a start frame timestamp because both targetPos and pos are at 
 
 ![UpdateAnalysisVelPosGood](https://raw.githubusercontent.com/huwb/jitternator/master/img/update_analysis_velpos_good.png)
 
-This final fix is counterintuitive and surprised me, and *really* easy to accidentally get wrong without consistency checking.
-
-A more involved example of an issue being caught and made explicit is a physics object which reads the player input and a keyframe animated value each physics substep. Both of these values are only updated once at the start of the frame, not for each physics substep, and therefore the timestamps won't match and the code will fail, unless it is explicitly told to ignore the timestamp. Which may be ok - using only the start frame user input values would be considered normal, but still better to be explicit about it IMO. On the other hand, the animated value having the wrong time might be more serious. One of the trickier jitter issues I've looked at in the past was using PD control to make a rigidbody follow an animated transform. An interpolator was necessary to give target transforms at the correct times for each physics substep.
+This final fix is unintuitive and surprised me, and is *really* easy to accidentally get wrong in practice.
 
 Implementing this into a C++ engine would be super-invasive and does not feel practical, at least in its current form. It might be an easier fit to other languages though.
 
 Such validation could probably be built into the compiler and could be an interesting direction for future work.
 
+
 ## Misc Notes
 
 * If you have known update dependencies between scripts **do** explicitly set the update order, and put comments next to each update function recording the dependency, as future you or someone else may move the update code elsewhere later on. Even better document the update flow, something as simple as an indented list works well IMO (see [example](https://github.com/huwb/crest-oceanrender/blob/master/README.md#update-order)).
-* Rigidbodies should be controlled using forces (you can prescribe a target position and velocity using PD control which essentially a damped spring) not directly using their transform component, unless the rigidbody is set to be kinematic. I've seen jitter from a dynamic rigidbody being placed manually inside static collision or other rigidbodies.
+* Rigidbodies should be controlled using forces (you can prescribe a target position and velocity using PD control which essentially a damped spring) instead of placing them directly using their transform component, unless the rigidbody is set to be kinematic. I've seen jitter from a dynamic rigidbody being placed manually each frame in a position that intersects static collision or other rigidbodies. Dumping out collision pairs from the physics engine can help to identify this.
 * As detailed above, anything on fixed update/physics update will jitter if its position is not interpolated at the end. Some engines will update the physics past the camera shutter time, so that the state at the shutter time can be interpolated and used for rendering. Unity rigidbodies are updated to within one fixed timestep of the target time, then:
   * If the *interpolation* property is set to *Extrapolate*, the rigidbody state is extrapolated to *shutter time* for rendering. Such linear extrapolation may be wrong under high accelerations and which may produce jitter (I have not encountered this though).
   * If the property is set to *Interpolate*, the render state will then be interpolated to *shutter time* - *fixed delta time*. This produces a jitter-free result because the render state is at a *constant* offset back in time. The side effect though is that it will render slightly behind its actual end frame state, due to the offset.
+* There is a nice article about physics-related jitter by Gaffer On Games: https://gafferongames.com/post/fix_your_timestep/ . Note that this implements the equivalent of the Unity Interpolate mode described in the previous note, and therefore interpolates the physics to *target time* minus *fixed dt*.
