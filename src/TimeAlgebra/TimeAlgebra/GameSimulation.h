@@ -11,26 +11,16 @@
 class GameSimulation
 {
 public:
-	GameSimulation()
-	{
-	}
-
-	void Init( const FloatTime& firstFrameDt )
-	{
-		_carStateLatest._pos = FloatTime( 0.0f, _physicsDt );
-		_carStateLatest._vel = FloatTime( 0.0f, _physicsDt );
-
-		_cameraPos.FinishedUpdate( firstFrameDt );
-	}
-
 	void Update( const FloatTime& frameDt )
 	{
 		InputsUpdate( frameDt );
 		AnimationUpdate( frameDt );
+		//CameraUpdateWithRestOfGame( frameDt );
 		PhysicsUpdate( frameDt );
 		MainUpdate( frameDt );
 
-		CameraUpdate( frameDt );
+		//CameraUpdateNoSim( frameDt );
+		CameraUpdateEndFrame( frameDt );
 	}
 
 	void InputsUpdate( const FloatTime& frameDt )
@@ -44,12 +34,15 @@ public:
 
 	FloatTime SampleAnimation( const FloatTime& frameDt )
 	{
-		// animated value is just a linear curve
-		float value = 5.0f * frameDt.Time();
 		// evaluate animation at end frame time - I've seen this on previous projects
-		float time = frameDt.Time() + frameDt.Value();
 
-		return DebugConstructFloatTime(value, time);
+		// animated value is just a linear curve
+		FloatTime val = FloatTime( 5.0f * frameDt.Time(), frameDt );
+
+		// now move val forward to end frame time
+		val.FinishedUpdate( frameDt );
+
+		return val;
 	}
 
 	void AnimationUpdate( const FloatTime& frameDt )
@@ -131,39 +124,87 @@ public:
 		// systems update - ai, logic, etc
 	}
 
-	void CameraUpdate( const FloatTime& frameDt )
+	// this can be run after the other bits in the game are updated. it doesn't use the dt value in the time update.
+	void CameraUpdateNoSim( const FloatTime& frameDt )
 	{
-		// scheme: sample car position etc at the end frame values, and then simulate forwards from end frame. so the from-time is
-		// the end frame time, and to to-time must then be 1 frame ahead
-		//_cameraDt = FloatTime( frameDt.Value(), frameDt.Value() + frameDt.Time() );
-		_cameraDt = frameDt;
-		AdvanceDt( _cameraDt );
+		// use the frame time giver, advanced to the end of the frame
+		FloatTime cameraDt = frameDt;
+		AdvanceDt( cameraDt );
 
-		// does not work!! we don't know the dt for the next frame, so we don't know how far forward to simulate the camera!
-		// HACK FIX!! reset the time
-		_cameraPos = FloatTime( _cameraPos.Value(), _cameraDt );
+		// place camera two units behind car (locked - no dynamics!)
+		_cameraPos = _carStateCurrent._pos - FloatTime( 2.0f, cameraDt );
 
+		// add a bit of user input. we decide here to take the start frame input values, and therefore set the time manually
+		_cameraPos += FloatTime( 0.1f * _inputVal.Value(), cameraDt );
+	}
+
+	// this one should be run with start frame data (i.e. before car updates)
+	void CameraUpdateWithRestOfGame( const FloatTime& frameDt )
+	{
 		// lerp camera towards car
-		_cameraPos = FloatTime::Lerp( _cameraPos, _carStateCurrent._pos, FloatTime( 6.0f * _cameraDt.Value(), _cameraDt ) );
+		_cameraPos = FloatTime::Lerp( _cameraPos, _carStateCurrent._pos, FloatTime( 6.0f, frameDt ) * frameDt );
 
 		// add influence from changing input
 		if( _inputVal.Time() > _inputValLast.Time() )
 		{
-			FloatTime velDep = Vel( _inputValLast, _inputVal );
-
-			// another thing that does not work! we don't have the end-frame inputs! we have the inputs from the beginning of the frame.
-			// this might be deemed "ok", or the inputs could be sampled at the end up the main update but before cameras..!?
-
-			// HACK FIX!! force time to be correct
-			_cameraPos += FloatTime( velDep.Value(), _cameraDt );
+			_cameraPos += FloatTime( 0.2f, frameDt ) * Vel( _inputValLast, _inputVal );
 		}
 
 		// add influence from speed
-		_cameraPos -= _carStateCurrent._vel * FloatTime( 0.1f, _cameraDt );
+		_cameraPos -= _carStateCurrent._vel * FloatTime( 0.1f, frameDt );
 
-		_cameraPos.FinishedUpdate( _cameraDt );
+		_cameraPos.FinishedUpdate( frameDt );
+	}
 
-		// the print function could also check time consistency? any output flow should check.
+	// a scheme i often see is cameras are updated at the end of the frame, using end frame values. this function tries to implement this,
+	// but is not consistent, see the comments below.
+	void CameraUpdateEndFrame( const FloatTime& frameDt )
+	{
+		// SCHEME: sample car position etc at the end frame values, and then simulate forwards from end this frame state. so the from-time is
+		// the end frame time, and to to-time must then be 1 frame ahead. unfortunately this does not work in this strict framework because
+		// we don't know how far forward to advance the camera sim, because we don't know the next frame dt (this is typically measured from
+		// real time at the end of the frame).
+
+		// so instead we take the end frme state but set the times to be the start frame state, and then update from there. this feels similar to
+		// operator splitting for solving differential equations. there is some error from this but i dont have a clear understanding
+		// of if or when this error would manifest as jitter.
+
+		// sample at start frame time
+		FloatTime camCarPos = FloatTime( _carStateCurrent._pos.Value(), frameDt );
+		FloatTime camCarVel = FloatTime( _carStateCurrent._vel.Value(), frameDt );
+
+		// lerp camera towards car
+		_cameraPos = FloatTime::Lerp( _cameraPos, camCarPos, FloatTime( 6.0f, frameDt ) * frameDt );
+
+		// add influence from changing input
+		if( _inputVal.Time() > _inputValLast.Time() )
+		{
+			_cameraPos += FloatTime( 0.2f, frameDt ) * Vel( _inputValLast, _inputVal );
+		}
+
+		// add influence from speed
+		_cameraPos -= camCarVel * FloatTime( 0.1f, frameDt );
+
+		_cameraPos.FinishedUpdate( frameDt );
+	}
+
+	// sample end frame state and render
+	void Render( const FloatTime& frameDt )
+	{
+		// sample simulation state
+		const FloatTime renderCarPos = _carStateCurrent._pos;
+		const FloatTime renderCarVel = _carStateCurrent._vel;
+		const FloatTime renderCamPos = _cameraPos;
+		
+		// strong check - everything should be at end frame time
+		FloatTime endFrameTime = frameDt;
+		AdvanceDt( endFrameTime );
+
+		CheckConsistency( renderCarPos, endFrameTime );
+		CheckConsistency( renderCarVel, endFrameTime );
+		CheckConsistency( renderCamPos, endFrameTime );
+
+		// the 'render'
 		printf( "Car pos: %f\n", _carStateCurrent._pos.Value() );
 	}
 
@@ -185,6 +226,5 @@ public:
 	FloatTime _physTimeBalance = FloatTime::SimStartValue( 0.0f );
 	FloatTime _physicsDt = FloatTime::SimStartValue( 1.0f / 64.0f );
 
-	FloatTime _cameraDt = FloatTime::SimStartValue( 0.0f );
 	FloatTime _cameraPos = FloatTime::SimStartValue( 0.0f );
 };

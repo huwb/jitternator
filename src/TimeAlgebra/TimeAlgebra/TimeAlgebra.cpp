@@ -14,12 +14,13 @@ void TestGame()
 
 	GameSimulation game;
 	
-	FloatTime frameDt = ConstructDt( 1.0f / 30.0f );
-	game.Init( frameDt );
+	FloatTime frameDt = FloatTime::SimStartValue( 1.0f / 30.0f );
 
-	for( int i = 0; i < 20; i++ )
+	for( int i = 0; i < 10; i++ )
 	{
 		game.Update( frameDt );
+
+		game.Render( frameDt );
 
 		// modify dt each frame slightly so that it is not uniform
 		FloatTime newDt = frameDt + FloatTime( 0.001f, frameDt );
@@ -33,19 +34,19 @@ void TestSimple()
 {
 	printf( "== TestSimple ==\n" );
 
-	FloatTime dt = ConstructDt( 1.0f / 32.0f );
+	FloatTime dt = FloatTime::SimStartValue( 1.0f / 32.0f );
 	
-	FloatTime pos( 1.0f, dt );
-	FloatTime vel( 2.0f, dt );
+	FloatTime pos = FloatTime::SimStartValue( 1.0f );
+	FloatTime vel = FloatTime::SimStartValue( 2.0f );
 
-	FloatTime lastTarget( 0.0f, dt );
+	FloatTime lastTarget = FloatTime::SimStartValue( 0.0f );
 	bool lastTargetValid = false;
 
-	for( int i = 0; i < 20; i++ )
+	for( int i = 0; i < 10; i++ )
 	{
 		// test - taking animated value at end of frame
 		FloatTime target = FloatTime( 10.0f, dt );
-		// artifically push dt forwards - to simulate getting a value at end frame time
+		// artificially push dt forwards - to simulate getting a value at end frame time
 		target.FinishedUpdate( dt );
 
 		// compute accel before updating pos!
