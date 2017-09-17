@@ -19,12 +19,6 @@ private:
 	}
 
 public:
-	// creates a float with the given value and timestamp 0
-	explicit FloatTime( float value )
-		: _value( value )
-	{
-	}
-
 	// creates a float with timestamp, using the timestamp from an existing value. using the 
 	// frame dt is a common pattern here
 	explicit FloatTime( float value, const FloatTime& timeGiver )
@@ -128,8 +122,18 @@ public:
 		return result;
 	}
 
+	static FloatTime SimStartValue( float value )
+	{
+		FloatTime result;
+		result._value = value;
+		result._time = 0.0f;
+		return result;
+	}
+
 private:
+	friend FloatTime ConstructDt( float dt );
 	friend void AdvanceDt( FloatTime& io_dt, const FloatTime& newDt );
+	friend FloatTime DebugConstructFloatTime( float value, float time );
 
 	float _value = 0.0f;
 	float _time = 0.0f;
@@ -147,6 +151,19 @@ void CheckConsistency( const FloatTime& a, const FloatTime& b )
 		__debugbreak();
 }
 
+FloatTime ConstructDt( float dt )
+{
+	FloatTime result;
+	result._value = dt;
+	result._time = 0.0f;
+	return result;
+}
+
+void AdvanceDt( FloatTime& io_dt )
+{
+	AdvanceDt( io_dt, io_dt );
+}
+
 void AdvanceDt( FloatTime& io_dt, const FloatTime& newDt )
 {
 	// if newDt is non-constant (was computed from some time-varying things), then ensure consistency
@@ -157,9 +174,12 @@ void AdvanceDt( FloatTime& io_dt, const FloatTime& newDt )
 	io_dt._time = io_dt._time + io_dt.Value();
 }
 
-void AdvanceDt( FloatTime& io_dt )
+FloatTime DebugConstructFloatTime( float value, float time )
 {
-	AdvanceDt( io_dt, io_dt );
+	FloatTime result;
+	result._value = value;
+	result._time = time;
+	return result;
 }
 
 // Vel is interesting as we have timestamps for the values. This eliminates an issue i've seen where a vel is

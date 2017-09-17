@@ -49,13 +49,14 @@ public:
 
 	void PhysicsUpdate( const FloatTime& frameDt )
 	{
-		// _physTimeBalance straddles two timelines - it is updated in physics update which can
-		// be ahead of frame update, so don't bother checking frame dt time
+		// _physTimeBalance is the cumulative delta between game update time and physics update time. it
+		// straddles two timelines. we arbitrarily assign it the physics time.
 		_physTimeBalance += FloatTime( frameDt.Value(), _physicsDt );
 
 		CarState lastState = _carStateLatest;
 
 		int stepCount = 0;
+		// while we still have outstanding time to simulate - while physics is behind camera shutter time
 		while( _physTimeBalance.Value() > 0.0f )
 		{
 			lastState = _carStateLatest;
@@ -137,21 +138,22 @@ public:
 
 	struct CarState
 	{
-		FloatTime pos = FloatTime( 0.0f );
-		FloatTime vel = FloatTime( 0.0f );
+		FloatTime pos = FloatTime::SimStartValue( 0.0f );
+		FloatTime vel = FloatTime::SimStartValue( 0.0f );
 	};
 
 	CarState _carStateLatest;
 	CarState _carStateCurrent;
 
-	FloatTime _inputVal = FloatTime( 0.0f );
-	FloatTime _inputValLast = FloatTime( 0.0f );
+	FloatTime _inputVal = FloatTime::SimStartValue( 0.0f );
+	FloatTime _inputValLast = FloatTime::SimStartValue( 0.0f );
 
-	FloatTime _carAnimTargetPos = FloatTime( 0.0f );
+	FloatTime _carAnimTargetPos = FloatTime::SimStartValue( 0.0f );
+	FloatTime _carAnimTargetPosEndFrame = FloatTime::SimStartValue( 0.0f );
 
-	FloatTime _physTimeBalance = FloatTime( 0.0f );
-	FloatTime _physicsDt = FloatTime( 1.0f / 64.0f );
+	FloatTime _physTimeBalance = FloatTime::SimStartValue( 0.0f );
+	FloatTime _physicsDt = FloatTime::SimStartValue( 1.0f / 64.0f );
 
-	FloatTime _cameraDt = FloatTime( 0.0f );
-	FloatTime _cameraPos = FloatTime( 0.0f );
+	FloatTime _cameraDt = FloatTime::SimStartValue( 0.0f );
+	FloatTime _cameraPos = FloatTime::SimStartValue( 0.0f );
 };
