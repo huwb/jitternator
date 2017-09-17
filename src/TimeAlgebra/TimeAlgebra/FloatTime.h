@@ -166,12 +166,13 @@ void AdvanceDt( FloatTime& io_dt )
 
 void AdvanceDt( FloatTime& io_dt, const FloatTime& newDt )
 {
-	// if newDt is non-constant (was computed from some time-varying things), then ensure consistency
 	CheckConsistency( io_dt, newDt );
 
-	// use new dt value, and advance time by the dt
-	io_dt._value = newDt.Value();
+	// advance time by the dt
 	io_dt._time = io_dt._time + io_dt.Value();
+
+	// use new dt value next frame
+	io_dt._value = newDt.Value();
 }
 
 FloatTime DebugConstructFloatTime( float value, float time )
