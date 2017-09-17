@@ -42,9 +42,25 @@ public:
 		_inputVal = FloatTime( 30.0f, frameDt );
 	}
 
+	FloatTime SampleAnimation( const FloatTime& frameDt )
+	{
+		// animated value is just a linear curve
+		float value = 5.0f * frameDt.Time();
+		// evaluate animation at end frame time - I've seen this on previous projects
+		float time = frameDt.Time() + frameDt.Value();
+
+		return DebugConstructFloatTime(value, time);
+	}
+
 	void AnimationUpdate( const FloatTime& frameDt )
 	{
-		_carAnimTargetPos = FloatTime( 5.0f * frameDt.Time(), frameDt /*+ frameDt.Value()*/ );
+		// assume that the sampled animation gives the end-frame (rendered) values
+
+		// in this case, the start frame values are the end frame values from the previous frame
+		_carAnimTargetPos = _carAnimTargetPosEndFrame;
+
+		// compute a new end frame value
+		_carAnimTargetPosEndFrame = SampleAnimation( frameDt );
 	}
 
 	void PhysicsUpdate( const FloatTime& frameDt )
