@@ -106,17 +106,21 @@ public:
 		return _time;
 	}
 
-	static FloatTime Lerp( const FloatTime& a, const FloatTime& b, const FloatTime& s )
+	// straightforward lerp of two values, given a lerp parameter
+	static FloatTime Lerp( const FloatTime& a, const FloatTime& b, const FloatTime& lerpParam )
 	{
-		return (FloatTime( 1.0f, s ) - s) * a + s * b;
+		return (FloatTime( 1.0f, lerpParam ) - lerpParam) * a + lerpParam * b;
 	}
 
-	// lerp between floats at two different simulation times. this is a special case and should
-	// only be used in low level time/state management code!
-	// lerp alpha has no units - it is not time
-	static FloatTime LerpInTime( const FloatTime& a, const FloatTime& b, float s )
+	// lerps between two values at different simulation times, to give an interpolated value
+	// at the provided target time. this would probably only be used in special cases, such as
+	// in code that runs simulations.
+	static FloatTime LerpToTime( const FloatTime& a, const FloatTime& b, const FloatTime& lerpTargetTime )
 	{
 		FloatTime result;
+		// strip time as we are interpolating across multiple times
+		float s = (lerpTargetTime.Value() - a.Time()) / (b.Time() - a.Time());
+		// lerp manually (unprotected)
 		result._value = (1.0f - s) * a.Value() + s * b.Value();
 		result._time = (1.0f - s) * a.Time() + s * b.Time();
 		return result;

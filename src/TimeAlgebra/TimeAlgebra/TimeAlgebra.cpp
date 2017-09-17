@@ -10,6 +10,8 @@
 
 void TestGame()
 {
+	printf( "== TestGame ==\n" );
+
 	GameSimulation game;
 	
 	FloatTime frameDt = ConstructDt( 1.0f / 30.0f );
@@ -19,15 +21,18 @@ void TestGame()
 	{
 		game.Update( frameDt );
 
-		AdvanceDt( frameDt );
-
 		// modify dt each frame slightly so that it is not uniform
-		frameDt += FloatTime( 0.001f, frameDt );
+		FloatTime newDt = frameDt + FloatTime( 0.001f, frameDt );
+
+		// advance time by current dt, and use new dt next frame
+		AdvanceDt( frameDt, newDt );
 	}
 }
 
 void TestSimple()
 {
+	printf( "== TestSimple ==\n" );
+
 	FloatTime dt = ConstructDt( 1.0f / 32.0f );
 	
 	FloatTime pos( 1.0f, dt );

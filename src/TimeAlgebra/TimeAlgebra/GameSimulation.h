@@ -65,35 +65,45 @@ public:
 
 	void PhysicsUpdate( const FloatTime& frameDt )
 	{
-		// _physTimeBalance is the cumulative delta between game update time and physics update time. it
-		// straddles two timelines. we arbitrarily assign it the physics time.
+		// _physTimeBalance is the cumulative delta between game update time and physics update time. this could be changed
+		// to be just a float instead of a FloatTime, but putting this delta on the physics time gives a little bit of
+		// additional validation that the simulation is consistent. 
 		_physTimeBalance += FloatTime( frameDt.Value(), _physicsDt );
 
-		CarState lastState = _carStateLatest;
+		if( _physTimeBalance.Value() <= 0.0f )
+		{
+			// nothing to be done - physics is already up to date
+			return;
+		}
 
-		int stepCount = 0;
+		// this will be used to interpolate physics -> camera time
+		CarState lastState;
+
 		// while we still have outstanding time to simulate - while physics is behind camera shutter time
-		while( _physTimeBalance.Value() > 0.0f )
+		do
 		{
 			lastState = _carStateLatest;
 
 			PhysicsUpdateStep( frameDt, _physicsDt );
 
-			// update balance
-			_physTimeBalance -= _physicsDt;
-			_physTimeBalance.FinishedUpdate( _physicsDt );
+			// update balance and move value forward in time in one fell swoop, by using the integrate function
+			// with a velocity of -1, which will make the value decrease by the amount of time moved forward.
+			_physTimeBalance.Integrate( FloatTime( -1.0f, _physicsDt ), _physicsDt );
 
-			AdvanceDt( _physicsDt, _physicsDt );
+			AdvanceDt( _physicsDt );
 
-			stepCount++;
-		}
+		} while( _physTimeBalance.Value() > 0.0f );
 
-		if( stepCount > 0 )
-		{
-			float lerpAlpha = 1.0f + (_physTimeBalance / _physicsDt).Value();
-			_carStateCurrent.pos = FloatTime::LerpInTime( lastState.pos, _carStateLatest.pos, lerpAlpha );
-			_carStateCurrent.vel = FloatTime::LerpInTime( lastState.vel, _carStateLatest.vel, lerpAlpha );
-		}
+		// now interpolate the physics state at the camera shutter time
+
+		// cam shutter time is current time + delta time
+		FloatTime camShutterTime = FloatTime( frameDt.Time(), frameDt ) + frameDt;
+		
+		_carStateCurrent.pos = FloatTime::LerpToTime( lastState.pos, _carStateLatest.pos, camShutterTime );
+		_carStateCurrent.vel = FloatTime::LerpToTime( lastState.vel, _carStateLatest.vel, camShutterTime );
+
+		// optional assert
+		CheckConsistency( _carStateCurrent.pos, _carStateCurrent.vel );
 	}
 
 	void PhysicsUpdateStep( const FloatTime& frameDt, const FloatTime& physicsDt )
