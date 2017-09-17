@@ -17,8 +17,8 @@ public:
 
 	void Init( const FloatTime& firstFrameDt )
 	{
-		_carStateLatest.pos = FloatTime( 0.0f, _physicsDt );
-		_carStateLatest.vel = FloatTime( 0.0f, _physicsDt );
+		_carStateLatest._pos = FloatTime( 0.0f, _physicsDt );
+		_carStateLatest._vel = FloatTime( 0.0f, _physicsDt );
 
 		_cameraPos.FinishedUpdate( firstFrameDt );
 	}
@@ -99,11 +99,11 @@ public:
 		// cam shutter time is current time + delta time
 		FloatTime camShutterTime = FloatTime( frameDt.Time(), frameDt ) + frameDt;
 		
-		_carStateCurrent.pos = FloatTime::LerpToTime( lastState.pos, _carStateLatest.pos, camShutterTime );
-		_carStateCurrent.vel = FloatTime::LerpToTime( lastState.vel, _carStateLatest.vel, camShutterTime );
+		_carStateCurrent._pos = FloatTime::LerpToTime( lastState._pos, _carStateLatest._pos, camShutterTime );
+		_carStateCurrent._vel = FloatTime::LerpToTime( lastState._vel, _carStateLatest._vel, camShutterTime );
 
 		// optional assert
-		CheckConsistency( _carStateCurrent.pos, _carStateCurrent.vel );
+		CheckConsistency( _carStateCurrent._pos, _carStateCurrent._vel );
 	}
 
 	void PhysicsUpdateStep( const FloatTime& frameDt, const FloatTime& physicsDt )
@@ -115,10 +115,10 @@ public:
 		FloatTime carAnimTargetPos_const = FloatTime( _carAnimTargetPos.Value(), physicsDt );
 		FloatTime inputVal_const = FloatTime( _inputVal.Value(), physicsDt );
 
-		FloatTime accel = inputVal_const + (carAnimTargetPos_const - _carStateLatest.pos);
+		FloatTime accel = inputVal_const + (carAnimTargetPos_const - _carStateLatest._pos);
 
-		_carStateLatest.pos.Integrate( _carStateLatest.vel, physicsDt );
-		_carStateLatest.vel.Integrate( accel, physicsDt );
+		_carStateLatest._pos.Integrate( _carStateLatest._vel, physicsDt );
+		_carStateLatest._vel.Integrate( accel, physicsDt );
 	}
 
 	void MainUpdate( const FloatTime& frameDt )
@@ -139,7 +139,7 @@ public:
 		_cameraPos = FloatTime( _cameraPos.Value(), _cameraDt );
 
 		// lerp camera towards car
-		_cameraPos = FloatTime::Lerp( _cameraPos, _carStateCurrent.pos, FloatTime( 6.0f * _cameraDt.Value(), _cameraDt ) );
+		_cameraPos = FloatTime::Lerp( _cameraPos, _carStateCurrent._pos, FloatTime( 6.0f * _cameraDt.Value(), _cameraDt ) );
 
 		// add influence from changing input
 		if( _inputVal.Time() > _inputValLast.Time() )
@@ -154,18 +154,18 @@ public:
 		}
 
 		// add influence from speed
-		_cameraPos -= _carStateCurrent.vel * FloatTime( 0.1f, _cameraDt );
+		_cameraPos -= _carStateCurrent._vel * FloatTime( 0.1f, _cameraDt );
 
 		_cameraPos.FinishedUpdate( _cameraDt );
 
 		// the print function could also check time consistency? any output flow should check.
-		printf( "Car pos: %f\n", _carStateCurrent.pos.Value() );
+		printf( "Car pos: %f\n", _carStateCurrent._pos.Value() );
 	}
 
 	struct CarState
 	{
-		FloatTime pos = FloatTime::SimStartValue( 0.0f );
-		FloatTime vel = FloatTime::SimStartValue( 0.0f );
+		FloatTime _pos = FloatTime::SimStartValue( 0.0f );
+		FloatTime _vel = FloatTime::SimStartValue( 0.0f );
 	};
 
 	CarState _carStateLatest;
