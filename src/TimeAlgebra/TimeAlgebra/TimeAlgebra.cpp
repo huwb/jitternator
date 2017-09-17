@@ -10,7 +10,7 @@
 
 void TestGame()
 {
-	printf( "== TestGame ==\n" );
+	printf( "\n== TestGame ==\n" );
 
 	GameSimulation game;
 	
@@ -32,7 +32,7 @@ void TestGame()
 
 void TestSimple()
 {
-	printf( "== TestSimple ==\n" );
+	printf( "\n== TestSimple ==\n" );
 
 	FloatTime dt = FloatTime::SimStartValue( 1.0f / 32.0f );
 	

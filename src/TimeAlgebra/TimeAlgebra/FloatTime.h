@@ -135,9 +135,6 @@ public:
 	}
 
 private:
-	friend FloatTime ConstructDt( float dt );
-	friend void AdvanceDt( FloatTime& io_dt, const FloatTime& newDt );
-
 	float _value = 0.0f;
 	float _time = 0.0f;
 };
@@ -154,20 +151,21 @@ void CheckConsistency( const FloatTime& a, const FloatTime& b )
 		__debugbreak();
 }
 
-void AdvanceDt( FloatTime& io_dt )
-{
-	AdvanceDt( io_dt, io_dt );
-}
-
 void AdvanceDt( FloatTime& io_dt, const FloatTime& newDt )
 {
 	CheckConsistency( io_dt, newDt );
 
-	// advance time by the dt
-	io_dt._time = io_dt._time + io_dt.Value();
+	// save current dt
+	FloatTime curDt = io_dt;
+	// apply new dt value for next frame
+	io_dt = newDt;
+	// advance time by the current dt
+	io_dt.FinishedUpdate( curDt );
+}
 
-	// use new dt value next frame
-	io_dt._value = newDt.Value();
+void AdvanceDt( FloatTime& io_dt )
+{
+	AdvanceDt( io_dt, io_dt );
 }
 
 // Vel is interesting as we have timestamps for the values. This eliminates an issue i've seen where a vel is
