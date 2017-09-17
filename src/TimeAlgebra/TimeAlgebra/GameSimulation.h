@@ -79,7 +79,7 @@ public:
 		// this will be used to interpolate physics -> camera time
 		CarState lastState;
 
-		// while we still have outstanding time to simulate - while physics is behind camera shutter time
+		// loop while we still have outstanding time to simulate - while physics is behind camera shutter time
 		do
 		{
 			lastState = _carStateLatest;
@@ -102,19 +102,24 @@ public:
 		_carStateCurrent._pos = FloatTime::LerpToTime( lastState._pos, _carStateLatest._pos, camShutterTime );
 		_carStateCurrent._vel = FloatTime::LerpToTime( lastState._vel, _carStateLatest._vel, camShutterTime );
 
-		// optional assert
+		// optional assert to ensure two separate values are in sync
 		CheckConsistency( _carStateCurrent._pos, _carStateCurrent._vel );
 	}
 
 	void PhysicsUpdateStep( const FloatTime& frameDt, const FloatTime& physicsDt )
 	{
-		// we are going to multiple physics updates using start frame values - we know we're going to be taking stale data here.
-		// take time-stripped copies
+		// we do multiple physics updates in a frame. here the update takes values from 2 sources:
+		
+		// - animation data - we could potentially subsample the animation to give fresh data for each physics step. instead we
+		//   knowingly and explicitly use the state start frame value by resampling at the current physics time:
 		CheckConsistency( _carAnimTargetPos, frameDt );
-		CheckConsistency( _inputVal, frameDt );
 		FloatTime carAnimTargetPos_const = FloatTime( _carAnimTargetPos.Value(), physicsDt );
+		
+		// - input values - again we explicitly reuse stale data, but in some scnarios (VR) we may sample up to date fresh values here
+		//   and would not need to hack this:
+		CheckConsistency( _inputVal, frameDt );
 		FloatTime inputVal_const = FloatTime( _inputVal.Value(), physicsDt );
-
+		
 		FloatTime accel = inputVal_const + (carAnimTargetPos_const - _carStateLatest._pos);
 
 		_carStateLatest._pos.Integrate( _carStateLatest._vel, physicsDt );
