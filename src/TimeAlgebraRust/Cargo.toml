@@ -1,0 +1,6 @@
+[package]
+name = "time_algebra_rust"
+version = "0.1.0"
+authors = ["Huw Bowles <huw.bowles@gmail.com>"]
+
+[dependencies]
